@@ -41,6 +41,12 @@ const NAV_SECTIONS: NavSection[] = [
         href: '/',
       },
       {
+        icon: Zap,
+        label: 'Dev Workspace (Demo)',
+        href: '/workspace',
+        badge: 'Hot',
+      },
+      {
         icon: Bell,
         label: 'Thông báo',
         href: '/notifications',
