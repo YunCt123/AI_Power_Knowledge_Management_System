@@ -62,7 +62,7 @@ async function generatePrSummary(
   apiKey: string
 ): Promise<string> {
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
 
   // Giới hạn độ dài diff tối đa 15,000 ký tự để tối ưu token
   const MAX_DIFF_CHARS = 15000;
