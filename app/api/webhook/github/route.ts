@@ -237,3 +237,7 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+export async function GET() {
+  return NextResponse.json({ status: "API Webhook đã online và sẵn sàng nhận request!" }, { status: 200 });
+}
