@@ -3,12 +3,9 @@ import React, { useEffect, useRef, useState } from "react";
 import mermaid from "mermaid";
 
 interface MermaidDiagramProps {
-  chart: string; // Đây là đoạn mã mermaid_code mà API trả về
+  chart: string; 
 }
 
-/**
- * Làm sạch chuỗi Mermaid nếu Gemini vô tình bọc trong ```mermaid ... ```
- */
 function sanitizeMermaidCode(raw: string): string {
   return raw
     .replace(/^```mermaid\s*/i, "")
