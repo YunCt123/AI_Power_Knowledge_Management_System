@@ -3,11 +3,11 @@ import { GoogleGenerativeAI, GenerationConfig } from '@google/generative-ai';
 import { Octokit } from 'octokit';
 
 export const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'placeholder-key'
 );
 
-export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+export const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || 'placeholder-key');
 
 export const octokit = new Octokit({ 
   auth: process.env.GITHUB_TOKEN || process.env.GITHUB_PAT 

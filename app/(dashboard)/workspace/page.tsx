@@ -12,7 +12,14 @@ import {
   GitPullRequest,
   Ticket,
   Webhook,
+  Sparkles,
+  UserCheck,
+  XCircle,
+  FileCode2,
+  Crown,
+  Code2,
 } from "lucide-react";
+import { useRoleStore } from "@/src/store/role-store";
 
 interface WarningRecord {
   title: string;
@@ -24,7 +31,20 @@ interface WarningRecord {
   similarity?: number;
 }
 
+interface DraftSOP {
+  title: string;
+  context: string;
+  rootCause: string;
+  solution: string;
+  hotFilesText: string; // Chuỗi phân tách bằng dấu phẩy để Tech Lead dễ sửa
+}
+
 export default function WorkspacePage() {
+  const { role } = useRoleStore();
+  const isTechLead = role === "TECH_LEAD";
+
+  const [draftSOP, setDraftSOP] = useState<DraftSOP | null>(null);
+  const [loadingDraft, setLoadingDraft] = useState(false);
   const [loadingSeed, setLoadingSeed] = useState(false);
   const [seedSuccess, setSeedSuccess] = useState<string | null>(null);
   const [loadingTask, setLoadingTask] = useState(false);
@@ -36,70 +56,64 @@ export default function WorkspacePage() {
   } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // KỊCH BẢN 1: Nạp bài học của người đi trước (Seed Data nhanh)
-  const handleSeedData = async () => {
+  // BƯỚC 1A (HUMAN-IN-THE-LOOP): AI phân tích PR & tạo Bản nháp SOP chờ Tech Lead duyệt
+  const handleGenerateDraft = () => {
+    setLoadingDraft(true);
+    setErrorMessage(null);
+    setSeedSuccess(null);
+
+    setTimeout(() => {
+      setDraftSOP({
+        title: "Sập hệ thống thanh toán do tràn RAM",
+        context:
+          "Tháng 10/2025, luồng thanh toán giỏ hàng bị sập 2 tiếng vào ngày Mega Sale do lượng đơn tăng đột biến.",
+        rootCause:
+          "Hàm xử lý tính tiền không giải phóng bộ nhớ (memory leak) khi lặp qua hàng ngàn sản phẩm trong giỏ hàng.",
+        solution:
+          "Bổ sung cơ chế phân trang (pagination) và clear cache Redis sau mỗi lượt lặp. Tuyệt đối không xóa hàm checkTimeout() ở dòng 45.",
+        hotFilesText: "src/services/payment.ts, src/api/cart.controller.ts",
+      });
+      setLoadingDraft(false);
+    }, 500);
+  };
+
+  // BƯỚC 1B (HUMAN-IN-THE-LOOP): Tech Lead chỉnh sửa xong và bấm "Duyệt & Đưa vào Vector DB"
+  const handleApproveAndSave = async () => {
+    if (!draftSOP) return;
     setLoadingSeed(true);
     setErrorMessage(null);
     setSeedSuccess(null);
+
+    const hotFilesArray = draftSOP.hotFilesText
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     try {
       const res = await fetch("/api/knowledge/mock-ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: "Sập hệ thống thanh toán do tràn RAM",
-          context: "Tháng 10/2025, luồng thanh toán giỏ hàng bị sập 2 tiếng vào ngày Sale.",
-          rootCause:
-            "Hàm xử lý tính tiền không giải phóng bộ nhớ (memory leak) khi lặp qua hàng ngàn sản phẩm.",
-          solution:
-            "Bổ sung cơ chế phân trang (pagination) và clear cache Redis sau mỗi lượt lặp. Tuyệt đối không xóa hàm checkTimeout() ở dòng 45.",
-          hotFiles: ["src/services/payment.ts", "src/api/cart.controller.ts"],
+          title: draftSOP.title,
+          context: draftSOP.context,
+          rootCause: draftSOP.rootCause,
+          solution: draftSOP.solution,
+          hotFiles: hotFilesArray,
         }),
       });
       const data = await res.json();
       if (data.success) {
         setSeedSuccess(
-          'Đã nạp thành công "Kinh nghiệm xương máu" vào Vector Database (Supabase pgvector)!'
+          "✅ Tech Lead đã phê duyệt! Bản chuẩn SOP đã được mã hóa thành Vector (768 chiều) và đưa vào hệ thống phòng ngự Supabase."
         );
+        setDraftSOP(null);
       } else {
-        setErrorMessage("Lỗi nạp dữ liệu: " + data.error);
+        setErrorMessage("Lỗi lưu dữ liệu: " + data.error);
       }
     } catch {
-      setErrorMessage("Lỗi kết nối khi nạp dữ liệu.");
+      setErrorMessage("Lỗi kết nối khi lưu SOP đã duyệt.");
     } finally {
       setLoadingSeed(false);
-    }
-  };
-
-  // KỊCH BẢN 2: Dev mới nhận việc (Trigger AI Cảnh báo trực tiếp)
-  const handleStartTask = async () => {
-    setLoadingTask(true);
-    setErrorMessage(null);
-    setWarning(null);
-    setWebhookCommentPreview(null);
-    try {
-      const res = await fetch("/api/warnings/check", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          taskDescription:
-            "Cập nhật lại giao diện và logic tính tiền cho nút Thanh toán trong Giỏ hàng.",
-          touchedFiles: ["src/services/payment.ts"],
-        }),
-      });
-      const data = await res.json();
-      if (data.success === false) {
-        setErrorMessage("Lỗi kiểm tra rủi ro: " + data.error);
-      } else if (data.hasWarning && data.warnings?.length > 0) {
-        setWarning(data.warnings[0]);
-      } else {
-        alert(
-          "Task này an toàn, không có rủi ro nào trong quá khứ! (Hãy đảm bảo bạn đã bấm nút Bước 1 trước)"
-        );
-      }
-    } catch {
-      setErrorMessage("Lỗi khi kiểm tra rủi ro.");
-    } finally {
-      setLoadingTask(false);
     }
   };
 
@@ -152,6 +166,39 @@ export default function WorkspacePage() {
     }
   };
 
+  // KỊCH BẢN 2: Dev mới nhận việc (Trigger AI Cảnh báo trực tiếp)
+  const handleStartTask = async () => {
+    setLoadingTask(true);
+    setErrorMessage(null);
+    setWarning(null);
+    setWebhookCommentPreview(null);
+    try {
+      const res = await fetch("/api/warnings/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          taskDescription:
+            "Cập nhật lại giao diện và logic tính tiền cho nút Thanh toán trong Giỏ hàng.",
+          touchedFiles: ["src/services/payment.ts"],
+        }),
+      });
+      const data = await res.json();
+      if (data.success === false) {
+        setErrorMessage("Lỗi kiểm tra rủi ro: " + data.error);
+      } else if (data.hasWarning && data.warnings?.length > 0) {
+        setWarning(data.warnings[0]);
+      } else {
+        alert(
+          "Task này an toàn, không có rủi ro nào trong quá khứ! (Hãy đảm bảo Tech Lead đã Duyệt SOP trước đó)"
+        );
+      }
+    } catch {
+      setErrorMessage("Lỗi khi kiểm tra rủi ro.");
+    } finally {
+      setLoadingTask(false);
+    }
+  };
+
   // KỊCH BẢN WEBHOOK 2: Giả lập Jira bắn Webhook khi Sếp vừa tạo Ticket mới (Lớp phòng ngự 1)
   const handleSimulateJiraWebhook = async () => {
     setLoadingWebhook("jira");
@@ -182,7 +229,7 @@ export default function WorkspacePage() {
           content: data.jiraCommentPreview,
         });
       } else if (data.success) {
-        alert("Jira Webhook: Không phát hiện rủi ro (Hãy nạp dữ liệu ở Bước 1 trước).");
+        alert("Jira Webhook: Không phát hiện rủi ro (Hãy nạp dữ liệu ở vai trò Tech Lead trước).");
       } else {
         setErrorMessage("Lỗi Jira Webhook: " + data.error);
       }
@@ -235,7 +282,7 @@ export default function WorkspacePage() {
           content: data.commentPreview,
         });
       } else if (data.success) {
-        alert("GitHub PR Webhook: PR an toàn (Hãy nạp dữ liệu ở Bước 1 trước).");
+        alert("GitHub PR Webhook: PR an toàn (Hãy nạp dữ liệu ở vai trò Tech Lead trước).");
       } else {
         setErrorMessage("Lỗi GitHub Open PR Webhook: " + data.error);
       }
@@ -248,13 +295,38 @@ export default function WorkspacePage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-          Dev Workspace (Luồng Thu Thập & Cảnh Báo Rủi Ro Just-in-Time)
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-          Giả lập hành trình AI bảo vệ Kỹ sư phần mềm qua 2 lớp phòng ngự tự động (Jira Webhook & GitHub Webhook).
-        </p>
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+            Dev Workspace
+          </h1>
+          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            {isTechLead
+              ? "Không gian Kiểm duyệt & Quản trị Tri thức dành cho Tech Lead / Engineering Manager."
+              : "Không gian làm việc & Nhận cảnh báo rủi ro tự động dành cho Developer."}
+          </p>
+        </div>
+
+        {/* Badge nhỏ hiển thị vai trò hiện tại (đổi kín đáo qua Avatar góc phải trên Header) */}
+        <div
+          className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold ${
+            isTechLead
+              ? "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300"
+              : "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+          }`}
+        >
+          {isTechLead ? (
+            <>
+              <Crown className="h-3.5 w-3.5 text-amber-500" />
+              <span>Chế độ: Tech Lead 👑 (Full Access)</span>
+            </>
+          ) : (
+            <>
+              <Code2 className="h-3.5 w-3.5 text-emerald-500" />
+              <span>Chế độ: Fresher Dev 👶 (Read-Only)</span>
+            </>
+          )}
+        </div>
       </header>
 
       {errorMessage && (
@@ -263,68 +335,191 @@ export default function WorkspacePage() {
         </div>
       )}
 
-      {/* BƯỚC 1 CỦA DEMO */}
-      <div className="rounded-xl border border-zinc-200 border-l-4 border-l-blue-600 bg-white p-6 shadow-xs dark:border-zinc-800 dark:border-l-blue-500 dark:bg-zinc-900">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h2 className="flex items-center gap-2 text-lg font-bold text-zinc-800 dark:text-zinc-100">
-              <Database className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              1. Hậu trường: Lưu trữ Tri thức (Luồng 2)
-            </h2>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Nạp bài học xương máu vào Supabase pgvector (768 chiều) hoặc giả lập sự kiện Senior Dev vừa Merge PR trên GitHub.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2.5">
-            <button
-              type="button"
-              onClick={handleSeedData}
-              disabled={loadingSeed || loadingWebhook !== null}
-              className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-xs font-medium text-white shadow-xs transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-            >
-              {loadingSeed ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Đang mã hóa Vector...
-                </>
-              ) : (
-                <>
-                  <Database className="h-4 w-4" />
-                  Nạp Nhanh Kinh Nghiệm Cũ
-                </>
-              )}
-            </button>
+      {/* ========================================================================
+          CHỈ HIỂN THỊ KHI ĐANG Ở VAI TRÒ TECH LEAD (ẨN HOÀN TOÀN VỚI FRESHER DEV)
+         ======================================================================== */}
+      {isTechLead && (
+        <div className="rounded-xl border border-zinc-200 border-l-4 border-l-amber-500 bg-white p-6 shadow-xs dark:border-zinc-800 dark:border-l-amber-500 dark:bg-zinc-900">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                  <UserCheck className="h-3.5 w-3.5" />
+                  Human-in-the-Loop (Tech Lead Only)
+                </span>
+              </div>
+              <h2 className="mt-2 flex items-center gap-2 text-lg font-bold text-zinc-800 dark:text-zinc-100">
+                <Database className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                Kiểm Duyệt & Phê Duyệt Tri Thức Đưa Vào Vector DB (Luồng 2)
+              </h2>
+              <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                AI đóng vai trò thư ký tóm tắt PR thành bản nháp SOP. Tech Lead kiểm tra, chỉnh sửa rồi mới bấm Duyệt đưa vào Vector DB.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2.5 shrink-0">
+              <button
+                type="button"
+                onClick={handleGenerateDraft}
+                disabled={loadingDraft || loadingSeed || loadingWebhook !== null}
+                className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-xs font-semibold text-white shadow-xs transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {loadingDraft ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    AI Đang Tóm Tắt PR...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    AI Sinh Bản Nháp SOP
+                  </>
+                )}
+              </button>
 
-            <button
-              type="button"
-              onClick={handleSimulateGitHubMergeWebhook}
-              disabled={loadingSeed || loadingWebhook !== null}
-              className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-purple-300 bg-purple-50 px-4 py-2.5 text-xs font-semibold text-purple-800 transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-300"
-            >
-              {loadingWebhook === "github-merge" ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  AI Đang Đọc Code Diff...
-                </>
-              ) : (
-                <>
-                  <GitMerge className="h-4 w-4" />
-                  Giả lập Webhook: Merge PR #104
-                </>
-              )}
-            </button>
+              <button
+                type="button"
+                onClick={handleSimulateGitHubMergeWebhook}
+                disabled={loadingSeed || loadingWebhook !== null}
+                className="inline-flex items-center gap-2 rounded-lg border border-purple-300 bg-purple-50 px-3.5 py-2.5 text-xs font-semibold text-purple-800 transition hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-purple-800 dark:bg-purple-950/50 dark:text-purple-300"
+              >
+                {loadingWebhook === "github-merge" ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    AI Đang Đọc Code Diff...
+                  </>
+                ) : (
+                  <>
+                    <GitMerge className="h-4 w-4" />
+                    Auto Webhook (Merge PR #104)
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* KHUNG HUMAN-IN-THE-LOOP: CHO PHÉP TECH LEAD CHỈNH SỬA BẢN NHÁP TRƯỚC KHI DUYỆT */}
+          {draftSOP && (
+            <div className="mt-6 rounded-xl border-2 border-indigo-200 bg-indigo-50/40 p-5 space-y-4 dark:border-indigo-900/60 dark:bg-indigo-950/20">
+              <div className="flex items-center justify-between border-b border-indigo-200/80 pb-3 dark:border-indigo-800/60">
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="text-sm font-bold text-indigo-950 dark:text-indigo-200">
+                    📝 Bản nháp Post-mortem SOP do Gemini trích xuất (Chờ Tech Lead phê duyệt)
+                  </h3>
+                </div>
+                <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                  Pending Review
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    Tiêu đề sự cố (Title):
+                  </label>
+                  <input
+                    type="text"
+                    value={draftSOP.title}
+                    onChange={(e) => setDraftSOP({ ...draftSOP, title: e.target.value })}
+                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-1 text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                    <FileCode2 className="h-3.5 w-3.5 text-rose-500" />
+                    Các file nhạy cảm (Hot Files - cách nhau dấu phẩy):
+                  </label>
+                  <input
+                    type="text"
+                    value={draftSOP.hotFilesText}
+                    onChange={(e) => setDraftSOP({ ...draftSOP, hotFilesText: e.target.value })}
+                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 font-mono text-xs text-rose-600 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-rose-400"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Bối cảnh xảy ra lỗi (Context):
+                </label>
+                <input
+                  type="text"
+                  value={draftSOP.context}
+                  onChange={(e) => setDraftSOP({ ...draftSOP, context: e.target.value })}
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">
+                  Nguyên nhân gốc rễ (Root Cause):
+                </label>
+                <textarea
+                  rows={2}
+                  value={draftSOP.rootCause}
+                  onChange={(e) => setDraftSOP({ ...draftSOP, rootCause: e.target.value })}
+                  className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-emerald-700 dark:text-emerald-400 mb-1">
+                  Giải pháp & Quy tắc bắt buộc (SOP Solution - Tech Lead có thể gõ sửa trực tiếp):
+                </label>
+                <textarea
+                  rows={2}
+                  value={draftSOP.solution}
+                  onChange={(e) => setDraftSOP({ ...draftSOP, solution: e.target.value })}
+                  className="w-full rounded-lg border border-emerald-300 bg-white px-3 py-2 text-sm font-medium text-emerald-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 dark:border-emerald-800 dark:bg-zinc-900 dark:text-emerald-300"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDraftSOP(null)}
+                  disabled={loadingSeed}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                >
+                  <XCircle className="h-4 w-4 text-zinc-500" />
+                  Hủy bỏ
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleApproveAndSave}
+                  disabled={loadingSeed}
+                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                >
+                  {loadingSeed ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Đang băm Vector 768 chiều...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      Tech Lead Duyệt & Đưa vào Vector DB
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {seedSuccess && (
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+              <span>{seedSuccess}</span>
+            </div>
+          )}
         </div>
+      )}
 
-        {seedSuccess && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-medium text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/40 dark:text-emerald-300">
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-            <span>{seedSuccess}</span>
-          </div>
-        )}
-      </div>
-
-      {/* BƯỚC 2 CỦA DEMO */}
+      {/* ========================================================================
+          PHẦN LÀM VIỆC CỦA DEVELOPER (HIỆN CHO CẢ FRESHER DEV & TECH LEAD)
+         ======================================================================== */}
       <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-xs dark:border-zinc-800 dark:bg-zinc-900">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between border-b border-zinc-200 pb-4 mb-4 gap-4 dark:border-zinc-800">
           <div>
@@ -332,10 +527,10 @@ export default function WorkspacePage() {
               Jira Ticket #889
             </span>
             <h2 className="mt-2 text-xl font-bold text-zinc-800 dark:text-zinc-100">
-              2. Tiền sảnh: Cập nhật API Thanh toán Giỏ hàng (Luồng 3)
+              Cập nhật API Thanh toán Giỏ hàng (Luồng 3)
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Người nhận việc: <strong>Dev Mới (Fresher)</strong>
+              Người nhận việc: <strong>Trần Minh Khôi (Fresher Dev 👶)</strong>
             </p>
           </div>
           <button
