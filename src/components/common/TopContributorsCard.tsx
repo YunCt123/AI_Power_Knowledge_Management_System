@@ -11,11 +11,11 @@ interface Contributor {
 }
 
 const contributors: Contributor[] = [
-  { name: "Trần Minh Đức", department: "Kỹ thuật", contributions: 24 },
-  { name: "Lê Thị Hương", department: "Sản xuất", contributions: 18 },
-  { name: "Phạm Văn Hùng", department: "QA/QC", contributions: 15 },
-  { name: "Nguyễn Thị Mai", department: "R&D", contributions: 12 },
-  { name: "Hoàng Đức Anh", department: "Vận hành", contributions: 9 },
+  { name: "Nguyễn Văn A", department: "Tech Lead / Architecture", contributions: 48 },
+  { name: "Trần Quốc Bảo", department: "Backend & Database", contributions: 36 },
+  { name: "Lê Hoàng Long", department: "Fullstack & Integrations", contributions: 29 },
+  { name: "Đặng Thu Thảo", department: "Frontend & UI/UX", contributions: 24 },
+  { name: "Phạm Minh Tuấn", department: "DevOps & Reliability", contributions: 21 },
 ];
 
 const maxContributions = contributors[0].contributions;

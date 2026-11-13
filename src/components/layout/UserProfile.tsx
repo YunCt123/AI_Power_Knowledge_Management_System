@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Shield, Check, Crown, Code2 } from 'lucide-react';
 import { useRoleStore, DemoRole } from '@/src/store/role-store';
+import { toast } from '@/src/store/toast-store';
 import { cn } from '@/src/utils/cn';
 
 interface UserProfileProps {
@@ -59,6 +60,10 @@ export function UserProfile({ className }: UserProfileProps) {
   const handleSelectRole = (newRole: DemoRole) => {
     setRole(newRole);
     setIsOpen(false);
+    toast.info(
+      'Đã chuyển góc nhìn (Role)',
+      `Bạn đang xem hệ thống với tư cách ${ROLE_CONFIG[newRole].name} - ${ROLE_CONFIG[newRole].title}`
+    );
   };
 
   return (
