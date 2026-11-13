@@ -18,8 +18,10 @@ import {
   FileCode2,
   Crown,
   Code2,
+  Copy,
 } from "lucide-react";
 import { useRoleStore } from "@/src/store/role-store";
+import { toast } from "@/src/store/toast-store";
 
 interface WarningRecord {
   title: string;
@@ -74,6 +76,10 @@ export default function WorkspacePage() {
         hotFilesText: "src/services/payment.ts, src/api/cart.controller.ts",
       });
       setLoadingDraft(false);
+      toast.info(
+        "Bản nháp SOP đã sẵn sàng",
+        "Gemini đã trích xuất lỗi và giải pháp từ PR #104. Tech Lead vui lòng kiểm tra và duyệt."
+      );
     }, 500);
   };
 
@@ -103,15 +109,20 @@ export default function WorkspacePage() {
       });
       const data = await res.json();
       if (data.success) {
-        setSeedSuccess(
-          "✅ Tech Lead đã phê duyệt! Bản chuẩn SOP đã được mã hóa thành Vector (768 chiều) và đưa vào hệ thống phòng ngự Supabase."
-        );
+        const msg =
+          "Tech Lead đã phê duyệt! Bản chuẩn SOP đã được mã hóa thành Vector (768 chiều) và đưa vào hệ thống phòng ngự Supabase.";
+        setSeedSuccess(`✅ ${msg}`);
         setDraftSOP(null);
+        toast.success("Phê duyệt SOP thành công!", msg);
       } else {
-        setErrorMessage("Lỗi lưu dữ liệu: " + data.error);
+        const err = "Lỗi lưu dữ liệu: " + data.error;
+        setErrorMessage(err);
+        toast.error("Không thể lưu SOP", data.error);
       }
     } catch {
-      setErrorMessage("Lỗi kết nối khi lưu SOP đã duyệt.");
+      const err = "Lỗi kết nối khi lưu SOP đã duyệt.";
+      setErrorMessage(err);
+      toast.error("Lỗi kết nối", err);
     } finally {
       setLoadingSeed(false);
     }
@@ -153,14 +164,18 @@ export default function WorkspacePage() {
       });
       const data = await res.json();
       if (data.success) {
-        setSeedSuccess(
-          `[GitHub Webhook - PR #104 Merged] Gemini đã tự động đọc Code Diff, đúc kết SOP ("${data.data?.title}") và lưu Vector vào Supabase!`
-        );
+        const msg = `Gemini đã tự động đọc Code Diff, đúc kết SOP ("${data.data?.title}") và lưu Vector vào Supabase!`;
+        setSeedSuccess(`[GitHub Webhook - PR #104 Merged] ${msg}`);
+        toast.success("GitHub Webhook PR #104 Merged", msg);
       } else {
-        setErrorMessage("Lỗi GitHub Merge Webhook: " + data.error);
+        const err = "Lỗi GitHub Merge Webhook: " + data.error;
+        setErrorMessage(err);
+        toast.error("Lỗi Webhook", data.error);
       }
     } catch {
-      setErrorMessage("Lỗi khi gọi GitHub Merge Webhook.");
+      const err = "Lỗi khi gọi GitHub Merge Webhook.";
+      setErrorMessage(err);
+      toast.error("Lỗi kết nối", err);
     } finally {
       setLoadingWebhook(null);
     }
@@ -185,15 +200,23 @@ export default function WorkspacePage() {
       const data = await res.json();
       if (data.success === false) {
         setErrorMessage("Lỗi kiểm tra rủi ro: " + data.error);
+        toast.error("Lỗi kiểm tra rủi ro", data.error);
       } else if (data.hasWarning && data.warnings?.length > 0) {
         setWarning(data.warnings[0]);
+        toast.warning(
+          "🚨 Phát hiện rủi ro cao!",
+          "Tác vụ chạm vào src/services/payment.ts từng gây sập server giỏ hàng ngày Mega Sale."
+        );
       } else {
-        alert(
-          "Task này an toàn, không có rủi ro nào trong quá khứ! (Hãy đảm bảo Tech Lead đã Duyệt SOP trước đó)"
+        toast.info(
+          "Task này an toàn",
+          "Không tìm thấy rủi ro quá khứ liên quan đến task này. (Đảm bảo Tech Lead đã duyệt SOP trước đó)"
         );
       }
     } catch {
-      setErrorMessage("Lỗi khi kiểm tra rủi ro.");
+      const err = "Lỗi khi kiểm tra rủi ro.";
+      setErrorMessage(err);
+      toast.error("Lỗi kết nối", err);
     } finally {
       setLoadingTask(false);
     }
@@ -228,13 +251,23 @@ export default function WorkspacePage() {
           source: "Lớp Phòng Ngự 1 — Bình luận tự động của Bot trên Jira Ticket #JIRA-889",
           content: data.jiraCommentPreview,
         });
+        toast.warning(
+          "Lớp 1: Cảnh báo tự động trên Jira #JIRA-889",
+          "Bot RepoMind đã quét yêu cầu và tạo bình luận cảnh báo rủi ro Flash Sale."
+        );
       } else if (data.success) {
-        alert("Jira Webhook: Không phát hiện rủi ro (Hãy nạp dữ liệu ở vai trò Tech Lead trước).");
+        toast.info(
+          "Jira Webhook an toàn",
+          "Không phát hiện rủi ro (Hãy nạp dữ liệu ở vai trò Tech Lead trước để thử nghiệm cảnh báo)."
+        );
       } else {
         setErrorMessage("Lỗi Jira Webhook: " + data.error);
+        toast.error("Lỗi Jira Webhook", data.error);
       }
     } catch {
-      setErrorMessage("Lỗi khi gọi Jira Webhook.");
+      const err = "Lỗi khi gọi Jira Webhook.";
+      setErrorMessage(err);
+      toast.error("Lỗi kết nối", err);
     } finally {
       setLoadingWebhook(null);
     }
@@ -281,13 +314,23 @@ export default function WorkspacePage() {
           source: "Lớp Phòng Ngự 2 — Bình luận tự động của Bot trên GitHub Pull Request #205",
           content: data.commentPreview,
         });
+        toast.warning(
+          "Lớp 2: Cảnh báo đánh chặn trên GitHub PR #205!",
+          "Bot RepoMind phát hiện xóa checkTimeout() ở payment.ts và đã comment cảnh báo trực tiếp trên PR."
+        );
       } else if (data.success) {
-        alert("GitHub PR Webhook: PR an toàn (Hãy nạp dữ liệu ở vai trò Tech Lead trước).");
+        toast.info(
+          "GitHub PR an toàn",
+          "PR an toàn (Hãy nạp dữ liệu ở vai trò Tech Lead trước để thử nghiệm)."
+        );
       } else {
         setErrorMessage("Lỗi GitHub Open PR Webhook: " + data.error);
+        toast.error("Lỗi GitHub PR Webhook", data.error);
       }
     } catch {
-      setErrorMessage("Lỗi khi gọi GitHub Open PR Webhook.");
+      const err = "Lỗi khi gọi GitHub Open PR Webhook.";
+      setErrorMessage(err);
+      toast.error("Lỗi kết nối", err);
     } finally {
       setLoadingWebhook(null);
     }
@@ -606,8 +649,21 @@ export default function WorkspacePage() {
       {/* HIỂN THỊ NỘI DUNG COMMENT TỰ ĐỘNG CỦA BOT TRÊN JIRA / GITHUB */}
       {webhookCommentPreview && (
         <div className="rounded-xl border border-indigo-200 bg-indigo-50/70 p-5 dark:border-indigo-900/60 dark:bg-indigo-950/30">
-          <div className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 mb-2">
-            🤖 {webhookCommentPreview.source}
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+              🤖 {webhookCommentPreview.source}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(webhookCommentPreview.content);
+                toast.success("Đã sao chép!", "Nội dung bình luận tự động của Bot đã được chép.");
+              }}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-700 hover:text-indigo-900 dark:text-indigo-300 dark:hover:text-indigo-100"
+            >
+              <Copy size={13} />
+              <span>Sao chép nội dung Bot</span>
+            </button>
           </div>
           <pre className="whitespace-pre-wrap rounded-lg border border-indigo-100 bg-white p-4 font-sans text-sm text-zinc-800 dark:border-indigo-900/40 dark:bg-zinc-900 dark:text-zinc-200">
             {webhookCommentPreview.content}
@@ -618,11 +674,26 @@ export default function WorkspacePage() {
       {/* POP-UP CẢNH BÁO (Chỉ hiện khi AI phát hiện rủi ro) */}
       {warning && (
         <div className="rounded-r-xl border-l-4 border-red-600 bg-red-50/90 p-6 shadow-lg dark:bg-red-950/30">
-          <div className="flex items-center gap-2.5 mb-2">
-            <ShieldAlert className="h-6 w-6 text-red-600 dark:text-red-400" />
-            <h3 className="text-lg font-bold text-red-700 dark:text-red-300">
-              🚨 CẢNH BÁO RỦI RO NGHIÊM TRỌNG TỪ REPOMIND AI
-            </h3>
+          <div className="flex items-center justify-between gap-2.5 mb-2">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-6 w-6 text-red-600 dark:text-red-400" />
+              <h3 className="text-lg font-bold text-red-700 dark:text-red-300">
+                🚨 CẢNH BÁO RỦI RO NGHIÊM TRỌNG TỪ REPOMIND AI
+              </h3>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText(
+                  `[SOP Warning] ${warning.title}\nNguyên nhân: ${warning.root_cause}\nGiải pháp: ${warning.solution}`
+                );
+                toast.success("Đã sao chép cảnh báo SOP!", "Nội dung cảnh báo rủi ro đã lưu vào clipboard.");
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:bg-red-950 dark:text-red-300"
+            >
+              <Copy size={13} />
+              <span>Sao chép SOP</span>
+            </button>
           </div>
 
           <p className="mb-4 text-sm font-medium text-red-600 dark:text-red-300">

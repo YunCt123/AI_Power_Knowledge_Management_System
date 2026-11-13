@@ -15,7 +15,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Brain,
-  Sparkles,
   Zap,
 } from 'lucide-react';
 import { useSidebarStore } from '@/src/store/sidebar-store';
@@ -138,10 +137,10 @@ export function Sidebar() {
             {!isCollapsed && (
               <div className="flex flex-col">
                 <span className="text-sm font-bold tracking-tight text-zinc-900 dark:text-zinc-100">
-                  AI KMS
+                  RepoMind
                 </span>
                 <span className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
-                  Quản trị Tri thức Ngầm
+                  Zero-Downtime AI
                 </span>
               </div>
             )}

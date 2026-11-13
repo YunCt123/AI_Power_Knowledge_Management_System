@@ -49,7 +49,8 @@ export async function POST(req: Request) {
       warnings 
     });
 
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

@@ -1,17 +1,20 @@
 'use client';
 
+import { useState } from 'react';
 import {
-  FolderTree,
-  Wrench,
-  AlertTriangle,
-  Lightbulb,
+  CreditCard,
+  Database,
   ShieldCheck,
-  Cpu,
-  Flame,
+  Server,
+  Network,
+  Layout,
   ArrowRight,
   Plus,
+  FolderTree,
+  Search,
 } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from '@/src/store/toast-store';
 
 interface CategoryItem {
   id: string;
@@ -26,153 +29,179 @@ interface CategoryItem {
 
 const CATEGORIES: CategoryItem[] = [
   {
-    id: 'sop',
-    name: 'Quy trình Vận hành Chuẩn (SOP)',
+    id: 'payment',
+    name: 'Payment & Checkout Engine',
     description:
-      'Quy chuẩn các bước thao tác trên dây chuyền sản xuất, vận hành máy móc thiết bị.',
-    icon: Wrench,
-    docCount: 342,
-    monthlyQueries: 1420,
-    digitizedPercent: 88,
+      'Cổng thanh toán Stripe/VNPay, xử lý giỏ hàng, cơ chế phân trang tránh OOM memory leak và Idempotency Webhook.',
+    icon: CreditCard,
+    docCount: 312,
+    monthlyQueries: 2840,
+    digitizedPercent: 96,
     color: 'from-blue-500 to-indigo-600',
   },
   {
-    id: 'troubleshooting',
-    name: 'Xử lý Sự cố & Khắc phục nhanh',
+    id: 'database',
+    name: 'Database, Caching & Concurrency',
     description:
-      'Tri thức chẩn đoán lỗi, mã báo lỗi máy móc và các kịch bản khắc phục sự cố tức thời.',
-    icon: AlertTriangle,
-    docCount: 289,
-    monthlyQueries: 2150,
-    digitizedPercent: 74,
+      'Khắc phục Race Condition Flash Sale, chống Deadlock PostgreSQL 40P01, tối ưu N+1 Query và kết nối Connection Pool.',
+    icon: Database,
+    docCount: 285,
+    monthlyQueries: 3410,
+    digitizedPercent: 92,
     color: 'from-amber-500 to-orange-600',
   },
   {
-    id: 'tacit',
-    name: 'Kinh nghiệm Ngầm Chuyên gia',
+    id: 'auth',
+    name: 'Authentication & Security (Zero-Trust)',
     description:
-      'Bí quyết thao tác, trực giác thợ bậc cao, cảm quan chất lượng không có trong sách vở.',
-    icon: Lightbulb,
-    docCount: 184,
-    monthlyQueries: 1890,
-    digitizedPercent: 62,
-    color: 'from-yellow-500 to-amber-600',
-  },
-  {
-    id: 'qa-qc',
-    name: 'Kiểm soát Chất lượng (QA/QC)',
-    description:
-      'Tiêu chuẩn dung sai, phương pháp đo kiểm ngoại quan và hướng dẫn phân loại lỗi thành phẩm.',
+      'JWT lifecycle, Google OAuth2 SSO, RBAC phân quyền theo vai trò, phòng chống SSRF và bảo mật API OWASP.',
     icon: ShieldCheck,
-    docCount: 195,
-    monthlyQueries: 980,
-    digitizedPercent: 82,
+    docCount: 198,
+    monthlyQueries: 1950,
+    digitizedPercent: 94,
     color: 'from-emerald-500 to-teal-600',
   },
   {
-    id: 'safety',
-    name: 'An toàn Lao động & Môi trường',
+    id: 'devops',
+    name: 'DevOps, CI/CD & Reliability',
     description:
-      'Quy chuẩn bảo hộ, ứng phó rò rỉ hóa chất, an toàn điện và phòng cháy chữa cháy trong xưởng.',
-    icon: Flame,
-    docCount: 112,
-    monthlyQueries: 430,
-    digitizedPercent: 95,
-    color: 'from-red-500 to-rose-600',
+      'Zero-downtime deployment, GitHub Actions, Supabase pgvector 768d, Docker microVMs và quy trình Onboarding 2 ngày.',
+    icon: Server,
+    docCount: 176,
+    monthlyQueries: 1620,
+    digitizedPercent: 88,
+    color: 'from-purple-500 to-violet-600',
   },
   {
-    id: 'rd-tech',
-    name: 'Nghiên cứu & Cải tiến Công nghệ (R&D)',
+    id: 'microservices',
+    name: 'APIs, Webhooks & Microservices',
     description:
-      'Dự án cải tiến Kaizen, thử nghiệm vật liệu mới và nâng cấp tự động hóa PLC/SCADA.',
-    icon: Cpu,
-    docCount: 125,
-    monthlyQueries: 620,
-    digitizedPercent: 54,
-    color: 'from-purple-500 to-violet-600',
+      'Xử lý Kafka consumer lag, RESTful rate-limiting, Background Queues và xử lý trùng lặp Webhook delivery.',
+    icon: Network,
+    docCount: 142,
+    monthlyQueries: 1280,
+    digitizedPercent: 85,
+    color: 'from-cyan-500 to-blue-600',
+  },
+  {
+    id: 'frontend',
+    name: 'Frontend & Next.js Architecture',
+    description:
+      'Next.js 16 App Router, React 19 compiler, khắc phục Hydration Mismatch, tối ưu TTFB và thiết kế UI/UX B2B SaaS.',
+    icon: Layout,
+    docCount: 134,
+    monthlyQueries: 1490,
+    digitizedPercent: 90,
+    color: 'from-rose-500 to-pink-600',
   },
 ];
 
 export default function CategoriesPage() {
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const filteredCategories = CATEGORIES.filter(
+    (c) =>
+      c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-3 py-0.5 text-xs font-semibold text-blue-700 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-300 mb-1.5">
+            <FolderTree size={12} />
+            <span>IT Architecture & Knowledge Modules</span>
+          </div>
           <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Cây phân loại tri thức
+            Phân loại tri thức hệ thống (Knowledge Categories)
           </h1>
           <p className="mt-1 text-xs text-zinc-500 sm:text-sm dark:text-zinc-400">
-            Hệ thống phân cấp tri thức theo tiêu chuẩn quản trị vận hành nhà máy và chuỗi cung ứng.
+            Cấu trúc danh mục tri thức kỹ thuật phần mềm, tỷ lệ số hóa SOPs và lưu lượng truy vấn thực tế.
           </p>
         </div>
 
         <button
           type="button"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white shadow-xs hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500"
+          onClick={() => {
+            toast.info('Tạo phân loại mới', 'Tính năng dành cho Tech Lead / System Architect.');
+          }}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-blue-700 transition active:scale-98"
         >
           <Plus size={14} />
-          Thêm danh mục mới
+          <span>Thêm phân loại mới</span>
         </button>
       </div>
 
-      {/* Grid */}
+      {/* Search Bar */}
+      <div className="relative max-w-md">
+        <Search
+          size={15}
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400"
+        />
+        <input
+          type="text"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          placeholder="Tìm phân loại (Payment, Database, DevOps, Auth, Frontend...)"
+          className="w-full rounded-xl border border-zinc-200 bg-white py-2 pl-9 pr-4 text-xs text-zinc-900 placeholder:text-zinc-400 focus:border-blue-500 focus:outline-none dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
+        />
+      </div>
+
+      {/* Grid Categories */}
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {CATEGORIES.map((cat) => {
-          const Icon = cat.icon;
+        {filteredCategories.map((item) => {
+          const IconComponent = item.icon;
           return (
             <div
-              key={cat.id}
-              className="group flex flex-col justify-between rounded-xl border border-zinc-200/80 bg-white p-5 shadow-xs transition-all hover:border-zinc-300 hover:shadow-md dark:border-zinc-800/80 dark:bg-zinc-900 dark:hover:border-zinc-700"
+              key={item.id}
+              className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-blue-800"
             >
               <div>
-                {/* Icon with gradient */}
-                <div
-                  className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr ${cat.color} text-white shadow-xs`}
-                >
-                  <Icon size={22} />
+                {/* Header Icon + Digitized badge */}
+                <div className="flex items-center justify-between">
+                  <div
+                    className={`flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-tr ${item.color} text-white shadow-xs`}
+                  >
+                    <IconComponent size={20} />
+                  </div>
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                    {item.digitizedPercent}% đã số hóa
+                  </span>
                 </div>
 
-                <h3 className="mt-4 text-base font-bold text-zinc-900 dark:text-zinc-100">
-                  {cat.name}
+                <h3 className="mt-4 text-base font-bold text-zinc-900 group-hover:text-blue-600 dark:text-zinc-100 dark:group-hover:text-blue-400 transition-colors">
+                  {item.name}
                 </h3>
                 <p className="mt-1.5 text-xs leading-relaxed text-zinc-600 dark:text-zinc-400">
-                  {cat.description}
+                  {item.description}
                 </p>
               </div>
 
-              <div className="mt-5 border-t border-zinc-100 pt-4 dark:border-zinc-800/80">
-                {/* Progress bar of digitization */}
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[11px] font-medium">
-                    <span className="text-zinc-500 dark:text-zinc-400">Tiến độ số hóa</span>
-                    <span className="text-zinc-900 dark:text-zinc-100">{cat.digitizedPercent}%</span>
+              {/* Stats Footer */}
+              <div className="mt-5 border-t border-zinc-100 pt-3 dark:border-zinc-800">
+                <div className="grid grid-cols-2 gap-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-zinc-400">Tài liệu SOP</span>
+                    <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100">
+                      {item.docCount}
+                    </span>
                   </div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                    <div
-                      className="h-full rounded-full bg-blue-600 dark:bg-blue-500"
-                      style={{ width: `${cat.digitizedPercent}%` }}
-                    />
+                  <div>
+                    <span className="block text-[10px] uppercase font-bold text-zinc-400">Truy vấn / tháng</span>
+                    <span className="text-sm font-bold text-zinc-800 dark:text-zinc-100">
+                      {item.monthlyQueries.toLocaleString()}
+                    </span>
                   </div>
                 </div>
 
-                {/* Stats & Link */}
-                <div className="mt-4 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
-                    <span>
-                      <strong className="text-zinc-900 dark:text-zinc-100">{cat.docCount}</strong> tài liệu
-                    </span>
-                    <span>•</span>
-                    <span>
-                      <strong className="text-zinc-900 dark:text-zinc-100">{cat.monthlyQueries}</strong> tra cứu
-                    </span>
-                  </div>
-
+                <div className="mt-3">
                   <Link
-                    href={`/knowledge?category=${encodeURIComponent(cat.name)}`}
-                    className="inline-flex items-center gap-1 font-semibold text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400"
+                    href={`/knowledge?category=${encodeURIComponent(item.name)}`}
+                    className="inline-flex w-full items-center justify-between rounded-lg bg-zinc-50 px-3 py-1.5 text-xs font-semibold text-zinc-700 transition hover:bg-blue-50 hover:text-blue-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-blue-950/50 dark:hover:text-blue-300"
                   >
-                    <span>Xem</span>
+                    <span>Xem các SOP thuộc nhóm này</span>
                     <ArrowRight size={13} />
                   </Link>
                 </div>
